@@ -7,7 +7,7 @@ RewriteEngine On
     Deny from all
 </FilesMatch>
 
-RewriteRule ^src/ - [F,L]
+RewriteRule ^api/src/ - [F,L]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

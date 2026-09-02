@@ -58,11 +58,11 @@ curl localhost:8080/health
 
 1. **Create a MySQL database** in the InfinityFree control panel (MySQL Databases). Note the host (`sqlXXX.infinityfree.com`), db name, user, and password.
 2. **Fill in `config.php`** from `config.example.php` with your Groq key, a long random `admin_secret`, and the MySQL details. Tables are created automatically on first request.
-3. **Upload** everything (`index.html`, `index.php`, `.htaccess`, `config.php`, `src/`) into `htdocs/` via the File Manager or FTP. Make sure `.htaccess` was uploaded (it's a hidden file).
+3. **Upload** everything (`index.html`, `index.php`, `.htaccess`, `config.php`, `api/`) into `htdocs/` via the File Manager or FTP. Make sure `.htaccess` was uploaded (it's a hidden file).
 4. Hit `https://yoursite.infinityfreeapp.com/health`, then open the site root and create a key from the signup form.
 
 Notes:
-- `.htaccess` blocks direct access to `config.php` and `src/`, so your Groq key stays private.
+- `.htaccess` blocks direct access to `config.php` and `api/src/`, so your Groq key stays private.
 - InfinityFree's free tier has no cron and limited CPU, so there is no background work here: every request is a single fast Groq call.
 - Free subdomains serve a JavaScript anti-bot check on first visit, which breaks plain `curl` clients. If you need to call the API from scripts or other servers, point a custom domain at the site (free, in the control panel).
 - Groq's free tier is generous but rate limited; if you get a 502 with a Groq error message, you've hit it.
@@ -93,13 +93,13 @@ Vercel has no anti-bot page, so `curl` and other servers can call the API direct
 
 ```
 index.html         landing page: docs, signup form, try-it playground
-index.php          router, auth, signup, rate limit
-api/index.php      Vercel entrypoint (requires ../index.php)
+index.php          Apache/InfinityFree entrypoint (requires api/index.php)
+api/index.php      router, auth, signup, rate limit
 vercel.json        vercel-php runtime + routes
-src/Config.php     config.php or env vars (DATABASE_URL -> PDO DSN)
-src/Handlers.php   /excuse and /tone prompts + validation
-src/Groq.php       Groq chat completions (JSON mode) via cURL
-src/Db.php         PDO wrapper, auto-creates tables (MySQL or SQLite)
-src/Response.php   JSON helpers + CORS
+api/src/Config.php     config.php or env vars (DATABASE_URL -> PDO DSN)
+api/src/Handlers.php   /excuse and /tone prompts + validation
+api/src/Groq.php       Groq chat completions (JSON mode) via cURL
+api/src/Db.php         PDO wrapper, auto-creates tables (MySQL or SQLite)
+api/src/Response.php   JSON helpers + CORS
 .htaccess          pretty URLs, blocks config/src
 ```

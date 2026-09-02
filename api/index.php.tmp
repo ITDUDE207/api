@@ -12,7 +12,7 @@ set_exception_handler(static function (Throwable $e): void {
     Response::error('Internal error: ' . $e->getMessage(), 502);
 });
 
-$config = Config::load(dirname(__DIR__) . '/config.php');
+$config = Config::load(__DIR__ . '/config.php');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'OPTIONS') {
