@@ -21,7 +21,7 @@ final class AppConfig
 
         return [
             'groq_api_key' => (string) $cfg['groq_api_key'],
-            'groq_model' => (string) ($cfg['groq_model'] ?? 'llama-3.3-70b-versatile'),
+            'groq_model' => (string) ($cfg['groq_model'] ?? 'openai/gpt-oss-120b'),
             'admin_secret' => (string) $cfg['admin_secret'],
             'db_dsn' => (string) $cfg['db_dsn'],
             'db_user' => (string) ($cfg['db_user'] ?? ''),
