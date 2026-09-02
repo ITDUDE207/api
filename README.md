@@ -7,9 +7,11 @@ Also rewrites angry messages so they land without burning bridges. Plain PHP + M
 
 | Method | Path       | Auth               | What it does                                   |
 |--------|------------|--------------------|------------------------------------------------|
-| GET    | `/`        | none               | JSON docs                                      |
+| GET    | `/`        | none               | landing page (`index.html`): docs, signup form, playground |
+| GET    | `/docs`    | none               | JSON docs                                      |
 | GET    | `/health`  | none               | liveness check                                 |
-| POST   | `/keys`    | `X-Admin-Secret`   | create an API key `{"label": "..."}`           |
+| POST   | `/signup`  | none               | self-service key `{"email": "..."}` (one per email, `signups_per_ip_per_day` per IP) |
+| POST   | `/keys`    | `X-Admin-Secret`   | admin-created API key `{"label": "..."}`      |
 | GET    | `/me`      | `X-Api-Key`        | your usage today                               |
 | POST   | `/excuse`  | `X-Api-Key`        | excuse -> `{subject, body, tip}`               |
 | POST   | `/tone`    | `X-Api-Key`        | text -> `{rewritten, changes, anger_before, anger_after}` |
@@ -21,8 +23,8 @@ Tones: `professional, calm, friendly, firm, apologetic, concise, warm, neutral`.
 ```bash
 API=https://yoursite.infinityfreeapp.com
 
-# Create a key (once)
-curl -X POST $API/keys -H "X-Admin-Secret: $ADMIN_SECRET" -d '{"label":"cam"}'
+# Get a key
+curl -X POST $API/signup -d '{"email":"you@example.com"}'
 
 # Excuse -> email
 curl -X POST $API/excuse -H "X-Api-Key: $KEY" -H "Content-Type: application/json" -d '{
@@ -56,8 +58,8 @@ curl localhost:8080/health
 
 1. **Create a MySQL database** in the InfinityFree control panel (MySQL Databases). Note the host (`sqlXXX.infinityfree.com`), db name, user, and password.
 2. **Fill in `config.php`** from `config.example.php` with your Groq key, a long random `admin_secret`, and the MySQL details. Tables are created automatically on first request.
-3. **Upload** everything (`index.php`, `.htaccess`, `config.php`, `src/`) into `htdocs/` via the File Manager or FTP. Make sure `.htaccess` was uploaded (it's a hidden file).
-4. Hit `https://yoursite.infinityfreeapp.com/health`, then create a key with `POST /keys`.
+3. **Upload** everything (`index.html`, `index.php`, `.htaccess`, `config.php`, `src/`) into `htdocs/` via the File Manager or FTP. Make sure `.htaccess` was uploaded (it's a hidden file).
+4. Hit `https://yoursite.infinityfreeapp.com/health`, then open the site root and create a key from the signup form.
 
 Notes:
 - `.htaccess` blocks direct access to `config.php` and `src/`, so your Groq key stays private.
@@ -68,7 +70,8 @@ Notes:
 ## Files
 
 ```
-index.php          router, auth, rate limit
+index.html         landing page: docs, signup form, try-it playground
+index.php          router, auth, signup, rate limit
 src/Handlers.php   /excuse and /tone prompts + validation
 src/Groq.php       Groq chat completions (JSON mode) via cURL
 src/Db.php         PDO wrapper, auto-creates tables (MySQL or SQLite)

@@ -36,6 +36,14 @@ final class Db
             created_at DATETIME NOT NULL $now
         )");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_usage_key_day ON usage_log (api_key, used_on)");
+
+        $this->pdo->exec("CREATE TABLE IF NOT EXISTS signups (
+            id $id,
+            email VARCHAR(190) NOT NULL UNIQUE,
+            api_key VARCHAR(64) NOT NULL,
+            ip VARCHAR(45) NOT NULL DEFAULT '',
+            created_at DATETIME NOT NULL $now
+        )");
     }
 
     public function createKey(string $label): string
@@ -43,6 +51,30 @@ final class Db
         $key = 'ex_' . bin2hex(random_bytes(20));
         $stmt = $this->pdo->prepare('INSERT INTO api_keys (api_key, label) VALUES (?, ?)');
         $stmt->execute([$key, substr($label, 0, 100)]);
+        return $key;
+    }
+
+    public function keyForEmail(string $email): ?string
+    {
+        $stmt = $this->pdo->prepare('SELECT api_key FROM signups WHERE email = ?');
+        $stmt->execute([$email]);
+        $key = $stmt->fetchColumn();
+        return is_string($key) ? $key : null;
+    }
+
+    public function signupsFromIpToday(string $ip): int
+    {
+        $col = $this->sqlite ? "date(created_at)" : 'DATE(created_at)';
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM signups WHERE ip = ? AND $col = ?");
+        $stmt->execute([$ip, gmdate('Y-m-d')]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function signup(string $email, string $ip): string
+    {
+        $key = $this->createKey($email);
+        $stmt = $this->pdo->prepare('INSERT INTO signups (email, api_key, ip) VALUES (?, ?, ?)');
+        $stmt->execute([$email, $key, $ip]);
         return $key;
     }
 

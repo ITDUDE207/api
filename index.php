@@ -32,9 +32,10 @@ $path = '/' . trim($path, '/');
 $docs = static fn (): array => [
     'name' => 'Excuse-to-Email API',
     'description' => 'Turns messy excuses into polished emails and defuses angry messages. Powered by Groq.',
-    'auth' => 'Send your key in the X-Api-Key header (or ?api_key=). Get one from the admin via POST /keys.',
+    'auth' => 'Send your key in the X-Api-Key header (or ?api_key=). Get one via POST /signup.',
     'endpoints' => [
         'GET  /health' => 'Liveness check.',
+        'POST /signup' => 'Get a free API key. Body: {"email": "you@example.com"}. One key per email.',
         'POST /keys' => 'Create an API key. Requires X-Admin-Secret header. Body: {"label": "who is this for"}',
         'GET  /me' => 'Usage for your key today.',
         'POST /excuse' => [
@@ -59,7 +60,7 @@ $docs = static fn (): array => [
     ],
 ];
 
-if ($path === '/' && $method === 'GET') {
+if (($path === '/' || $path === '/docs') && $method === 'GET') {
     Response::ok($docs());
 }
 if ($path === '/health') {
@@ -91,6 +92,26 @@ if ($path === '/keys') {
     $label = $readBody()['label'] ?? '';
     $key = $db->createKey(is_string($label) ? $label : '');
     Response::json(['ok' => true, 'api_key' => $key, 'daily_limit' => $config['daily_limit']], 201);
+}
+
+if ($path === '/signup') {
+    if ($method !== 'POST') {
+        Response::error('Method not allowed', 405);
+    }
+    $email = $readBody()['email'] ?? '';
+    $email = is_string($email) ? strtolower(trim($email)) : '';
+    if ($email === '' || strlen($email) > 190 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        Response::error('A valid email is required', 422);
+    }
+    if ($existing = $db->keyForEmail($email)) {
+        Response::ok(['api_key' => $existing, 'daily_limit' => $config['daily_limit'], 'existing' => true]);
+    }
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    if ($db->signupsFromIpToday($ip) >= (int) ($config['signups_per_ip_per_day'] ?? 3)) {
+        Response::error('Too many signups from this network today. Try again tomorrow.', 429);
+    }
+    $key = $db->signup($email, $ip);
+    Response::json(['ok' => true, 'api_key' => $key, 'daily_limit' => $config['daily_limit'], 'existing' => false], 201);
 }
 
 $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? ($_GET['api_key'] ?? '');

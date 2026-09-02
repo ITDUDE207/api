@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excuse-to-Email API</title>
+<style>
+  :root { --bg:#0f1117; --card:#181b24; --line:#2a2f3d; --text:#e6e8ef; --muted:#9aa1b5; --accent:#7c9cff; --ok:#4ade80; --err:#f87171; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:900px; margin:0 auto; padding:48px 20px 80px; }
+  h1 { font-size:2.4rem; margin:0 0 8px; }
+  h2 { font-size:1.4rem; margin:48px 0 12px; border-bottom:1px solid var(--line); padding-bottom:8px; }
+  h3 { margin:24px 0 8px; font-size:1.05rem; }
+  p.lead { color:var(--muted); font-size:1.1rem; margin:0 0 24px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin:16px 0; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9em; }
+  code { background:#232735; padding:2px 6px; border-radius:4px; }
+  pre { background:#0b0d13; border:1px solid var(--line); border-radius:8px; padding:14px; overflow:auto; margin:8px 0; }
+  pre code { background:none; padding:0; }
+  label { display:block; font-size:.9rem; color:var(--muted); margin:12px 0 4px; }
+  input, textarea, select { width:100%; background:#0b0d13; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px 12px; font:inherit; }
+  textarea { min-height:90px; resize:vertical; }
+  button { background:var(--accent); color:#0b0d13; border:0; border-radius:8px; padding:10px 18px; font:inherit; font-weight:600; cursor:pointer; margin-top:14px; }
+  button:disabled { opacity:.5; cursor:wait; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:640px) { .row { grid-template-columns:1fr; } }
+  .result { margin-top:14px; white-space:pre-wrap; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  table { width:100%; border-collapse:collapse; margin:8px 0; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:.85rem; }
+  .pill { display:inline-block; font-size:.75rem; font-weight:700; padding:2px 8px; border-radius:999px; background:#232735; color:var(--accent); margin-right:6px; }
+  .key { font-family:ui-monospace,monospace; background:#0b0d13; border:1px dashed var(--accent); padding:10px; border-radius:8px; word-break:break-all; margin-top:10px; }
+  footer { margin-top:64px; color:var(--muted); font-size:.85rem; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Excuse-to-Email API</h1>
+  <p class="lead">Turn "overslept, cat spilled coffee on my laptop, missed standup" into an email you can actually send. Rewrite the angry message before you hit send. Powered by Groq.</p>
+
+  <section class="card" id="signup">
+    <h3 style="margin-top:0">Get an API key</h3>
+    <p style="color:var(--muted);margin:0">Free. One key per email, <span id="limit-text">50</span> requests per day. Your key is shown once, so copy it.</p>
+    <form id="signup-form">
+      <label for="email">Email</label>
+      <input id="email" type="email" required placeholder="you@example.com" autocomplete="email">
+      <button type="submit">Create key</button>
+    </form>
+    <div id="signup-result" class="result"></div>
+  </section>
+
+  <h2>Quick start</h2>
+  <pre><code>curl -X POST <span class="base"></span>/excuse \
+  -H "X-Api-Key: YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"excuse": "up til 3am fixing prod, slept through the 9am client call", "sender": "Cam", "tone": "apologetic"}'</code></pre>
+  <pre><code>{
+  "ok": true,
+  "subject": "Apologies for missing this morning's call",
+  "body": "Hi ...",
+  "tip": "Send this before lunch and offer a specific time to reschedule.",
+  "remaining_today": 49
+}</code></pre>
+
+  <h2>Authentication</h2>
+  <p>Send your key in the <code>X-Api-Key</code> header (or <code>?api_key=</code> query param). Every response includes <code>ok: true|false</code>; errors include an <code>error</code> string.</p>
+
+  <h2>Endpoints</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr>
+    <tr><td><span class="pill">GET</span></td><td><code>/health</code></td><td>none</td><td>Liveness check</td></tr>
+    <tr><td><span class="pill">GET</span></td><td><code>/docs</code></td><td>none</td><td>These docs as JSON</td></tr>
+    <tr><td><span class="pill">POST</span></td><td><code>/signup</code></td><td>none</td><td>Get a key: <code>{"email": "..."}</code></td></tr>
+    <tr><td><span class="pill">GET</span></td><td><code>/me</code></td><td>key</td><td>Usage today for your key</td></tr>
+    <tr><td><span class="pill">POST</span></td><td><code>/excuse</code></td><td>key</td><td>Excuse → email</td></tr>
+    <tr><td><span class="pill">POST</span></td><td><code>/tone</code></td><td>key</td><td>Angry text → text that lands</td></tr>
+  </table>
+
+  <h3>POST /excuse</h3>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>excuse</code></td><td>yes</td><td>The messy truth, up to 1000 chars</td></tr>
+    <tr><td><code>recipient</code></td><td>no</td><td>Who it's for. Default <code>"my manager"</code></td></tr>
+    <tr><td><code>sender</code></td><td>no</td><td>Your name for the sign-off</td></tr>
+    <tr><td><code>context</code></td><td>no</td><td>Anything else to mention (e.g. "I'll make up the hours Friday")</td></tr>
+    <tr><td><code>tone</code></td><td>no</td><td><code>professional</code> (default), <code>calm</code>, <code>friendly</code>, <code>firm</code>, <code>apologetic</code>, <code>concise</code>, <code>warm</code>, <code>neutral</code></td></tr>
+    <tr><td><code>honesty</code></td><td>no</td><td><code>honest</code> (default) or <code>vague</code> — keeps it truthful but generic ("a personal matter")</td></tr>
+  </table>
+  <p>Returns <code>subject</code>, <code>body</code>, <code>tip</code>, <code>tone</code>, <code>remaining_today</code>.</p>
+
+  <h3>POST /tone</h3>
+  <table>
+    <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>text</code></td><td>yes</td><td>The message you're about to regret, up to 3000 chars</td></tr>
+    <tr><td><code>tone</code></td><td>no</td><td>Same options as above. Default <code>calm</code></td></tr>
+    <tr><td><code>audience</code></td><td>no</td><td>e.g. "my landlord", "team channel"</td></tr>
+  </table>
+  <p>Returns <code>rewritten</code>, <code>changes[]</code>, <code>anger_before</code> (0–10), <code>anger_after</code> (0–10), <code>remaining_today</code>.</p>
+
+  <h3>Errors</h3>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td>400</td><td>Body isn't a JSON object</td></tr>
+    <tr><td>401</td><td>Missing or invalid API key</td></tr>
+    <tr><td>422</td><td>Validation failed (message says which field)</td></tr>
+    <tr><td>429</td><td>Daily limit reached (resets 00:00 UTC) or too many signups from your network</td></tr>
+    <tr><td>502</td><td>Upstream (Groq) error</td></tr>
+  </table>
+
+  <h2>Try it</h2>
+  <section class="card">
+    <label for="try-key">Your API key</label>
+    <input id="try-key" placeholder="ex_...">
+    <div class="row">
+      <div>
+        <label for="try-endpoint">Endpoint</label>
+        <select id="try-endpoint">
+          <option value="excuse">/excuse</option>
+          <option value="tone">/tone</option>
+        </select>
+      </div>
+      <div>
+        <label for="try-tone">Tone</label>
+        <select id="try-tone">
+          <option>professional</option><option>calm</option><option>friendly</option><option>firm</option>
+          <option>apologetic</option><option>concise</option><option>warm</option><option>neutral</option>
+        </select>
+      </div>
+    </div>
+    <label for="try-text" id="try-text-label">Excuse</label>
+    <textarea id="try-text" placeholder="overslept, cat knocked coffee on the laptop, missed standup"></textarea>
+    <div class="row">
+      <div><label for="try-a" id="try-a-label">Recipient</label><input id="try-a" placeholder="my manager"></div>
+      <div><label for="try-b" id="try-b-label">Your name</label><input id="try-b" placeholder="Cam"></div>
+    </div>
+    <button id="try-btn">Send</button>
+    <pre id="try-result" class="result" hidden></pre>
+  </section>
+
+  <footer>Built with plain PHP + MySQL. Source: <a href="https://github.com/ITDUDE207/api">github.com/ITDUDE207/api</a></footer>
+</main>
+
+<script>
+(() => {
+  const base = location.origin + location.pathname.replace(/\/(index\.html)?$/, '');
+  document.querySelectorAll('.base').forEach(el => el.textContent = base);
+
+  const $ = id => document.getElementById(id);
+  const post = async (path, body, headers = {}) => {
+    const r = await fetch(base + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+    return r.json();
+  };
+
+  fetch(base + '/health').then(r => r.json()).catch(() => {});
+
+  $('signup-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const out = $('signup-result');
+    btn.disabled = true; out.textContent = 'Creating…'; out.className = 'result';
+    try {
+      const j = await post('/signup', { email: $('email').value.trim() });
+      if (!j.ok) throw new Error(j.error);
+      if (j.daily_limit) $('limit-text').textContent = j.daily_limit;
+      out.className = 'result ok';
+      out.innerHTML = (j.existing ? 'You already had a key:' : 'Your key:') +
+        '<div class="key">' + j.api_key + '</div>';
+      $('try-key').value = j.api_key;
+    } catch (err) {
+      out.className = 'result err'; out.textContent = err.message;
+    } finally { btn.disabled = false; }
+  });
+
+  const syncTryLabels = () => {
+    const isTone = $('try-endpoint').value === 'tone';
+    $('try-text-label').textContent = isTone ? 'Text' : 'Excuse';
+    $('try-text').placeholder = isTone ? 'WHY is the deploy broken AGAIN. did anyone even test this??' : 'overslept, cat knocked coffee on the laptop, missed standup';
+    $('try-a-label').textContent = isTone ? 'Audience' : 'Recipient';
+    $('try-a').placeholder = isTone ? 'team channel' : 'my manager';
+    $('try-b-label').textContent = isTone ? '(unused)' : 'Your name';
+    $('try-b').disabled = isTone;
+  };
+  $('try-endpoint').addEventListener('change', syncTryLabels);
+  syncTryLabels();
+
+  $('try-btn').addEventListener('click', async () => {
+    const out = $('try-result'), btn = $('try-btn');
+    const isTone = $('try-endpoint').value === 'tone';
+    const body = isTone
+      ? { text: $('try-text').value, tone: $('try-tone').value, audience: $('try-a').value }
+      : { excuse: $('try-text').value, tone: $('try-tone').value, recipient: $('try-a').value, sender: $('try-b').value };
+    btn.disabled = true; out.hidden = false; out.className = 'result'; out.textContent = 'Thinking…';
+    try {
+      const j = await post('/' + $('try-endpoint').value, body, { 'X-Api-Key': $('try-key').value.trim() });
+      out.className = 'result ' + (j.ok ? 'ok' : 'err');
+      out.textContent = JSON.stringify(j, null, 2);
+    } catch (err) {
+      out.className = 'result err'; out.textContent = err.message;
+    } finally { btn.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>

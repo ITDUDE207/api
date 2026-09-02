@@ -17,4 +17,7 @@ return [
 
     // Requests allowed per API key per UTC day.
     'daily_limit' => 50,
+
+    // Self-service signups (POST /signup) allowed per IP per UTC day.
+    'signups_per_ip_per_day' => 3,
 ];
