@@ -96,7 +96,7 @@ index.html         landing page: docs, signup form, try-it playground
 index.php          Apache/InfinityFree entrypoint (requires api/index.php)
 api/index.php      router, auth, signup, rate limit
 vercel.json        vercel-php runtime + routes
-api/src/Config.php     config.php or env vars (DATABASE_URL -> PDO DSN)
+api/src/AppConfig.php     config.php or env vars (DATABASE_URL -> PDO DSN)
 api/src/Handlers.php   /excuse and /tone prompts + validation
 api/src/Groq.php       Groq chat completions (JSON mode) via cURL
 api/src/Db.php         PDO wrapper, auto-creates tables (MySQL or SQLite)

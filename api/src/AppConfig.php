@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-final class Config
+final class AppConfig
 {
     /**
      * Loads config.php if present (InfinityFree / local), otherwise environment variables (Vercel etc).

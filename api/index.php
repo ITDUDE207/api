@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/src/Response.php';
-require __DIR__ . '/src/Config.php';
+require __DIR__ . '/src/AppConfig.php';
 require __DIR__ . '/src/Db.php';
 require __DIR__ . '/src/Groq.php';
 require __DIR__ . '/src/Handlers.php';
@@ -12,7 +12,7 @@ set_exception_handler(static function (Throwable $e): void {
     Response::error('Internal error: ' . $e->getMessage(), 502);
 });
 
-$config = Config::load(dirname(__DIR__) . '/config.php');
+$config = AppConfig::load(dirname(__DIR__) . '/config.php');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'OPTIONS') {
