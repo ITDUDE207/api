@@ -67,11 +67,36 @@ Notes:
 - Free subdomains serve a JavaScript anti-bot check on first visit, which breaks plain `curl` clients. If you need to call the API from scripts or other servers, point a custom domain at the site (free, in the control panel).
 - Groq's free tier is generous but rate limited; if you get a 502 with a Groq error message, you've hit it.
 
+## Deploy to Vercel + Neon
+
+No `config.php` on Vercel: the app reads env vars instead (see `src/Config.php`). Uses the [vercel-php](https://github.com/vercel-community/php) runtime (`vercel.json`, `api/index.php`) and Postgres via `pdo_pgsql`.
+
+1. **Neon**: create a project at https://neon.tech, copy the connection string (`postgresql://user:pass@ep-xxx.aws.neon.tech/neondb?sslmode=require`).
+2. **Vercel**: https://vercel.com/new → import `ITDUDE207/api`, framework "Other", leave build settings empty.
+3. **Environment variables** (Project → Settings → Environment Variables):
+
+   | Name | Value |
+   |------|-------|
+   | `DATABASE_URL` | the Neon connection string |
+   | `GROQ_API_KEY` | from https://console.groq.com/keys |
+   | `ADMIN_SECRET` | any long random string |
+   | `GROQ_MODEL` | optional, default `llama-3.3-70b-versatile` |
+   | `DAILY_LIMIT` | optional, default `50` |
+   | `SIGNUPS_PER_IP_PER_DAY` | optional, default `3` |
+
+   (If you use Vercel's Neon integration it sets `POSTGRES_URL` automatically, which also works.)
+4. Deploy. Tables are created on the first request. Open the site root for the signup page.
+
+Vercel has no anti-bot page, so `curl` and other servers can call the API directly. Cold starts are ~250 ms.
+
 ## Files
 
 ```
 index.html         landing page: docs, signup form, try-it playground
 index.php          router, auth, signup, rate limit
+api/index.php      Vercel entrypoint (requires ../index.php)
+vercel.json        vercel-php runtime + routes
+src/Config.php     config.php or env vars (DATABASE_URL -> PDO DSN)
 src/Handlers.php   /excuse and /tone prompts + validation
 src/Groq.php       Groq chat completions (JSON mode) via cURL
 src/Db.php         PDO wrapper, auto-creates tables (MySQL or SQLite)

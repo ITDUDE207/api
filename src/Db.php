@@ -5,10 +5,12 @@ final class Db
 {
     private PDO $pdo;
     private bool $sqlite;
+    private bool $pgsql;
 
     public function __construct(string $dsn, string $user, string $pass)
     {
         $this->sqlite = str_starts_with($dsn, 'sqlite:');
+        $this->pgsql = str_starts_with($dsn, 'pgsql:');
         $this->pdo = new PDO($dsn, $user, $pass, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -18,14 +20,19 @@ final class Db
 
     private function ensureSchema(): void
     {
-        $id = $this->sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT UNSIGNED AUTO_INCREMENT PRIMARY KEY';
+        $id = match (true) {
+            $this->sqlite => 'INTEGER PRIMARY KEY AUTOINCREMENT',
+            $this->pgsql => 'SERIAL PRIMARY KEY',
+            default => 'INT UNSIGNED AUTO_INCREMENT PRIMARY KEY',
+        };
+        $datetime = $this->pgsql ? 'TIMESTAMP' : 'DATETIME';
         $now = $this->sqlite ? "DEFAULT (datetime('now'))" : 'DEFAULT CURRENT_TIMESTAMP';
 
         $this->pdo->exec("CREATE TABLE IF NOT EXISTS api_keys (
             id $id,
             api_key VARCHAR(64) NOT NULL UNIQUE,
             label VARCHAR(100) NOT NULL DEFAULT '',
-            created_at DATETIME NOT NULL $now
+            created_at $datetime NOT NULL $now
         )");
 
         $this->pdo->exec("CREATE TABLE IF NOT EXISTS usage_log (
@@ -33,7 +40,7 @@ final class Db
             api_key VARCHAR(64) NOT NULL,
             endpoint VARCHAR(32) NOT NULL,
             used_on DATE NOT NULL,
-            created_at DATETIME NOT NULL $now
+            created_at $datetime NOT NULL $now
         )");
         $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_usage_key_day ON usage_log (api_key, used_on)");
 
@@ -42,7 +49,7 @@ final class Db
             email VARCHAR(190) NOT NULL UNIQUE,
             api_key VARCHAR(64) NOT NULL,
             ip VARCHAR(45) NOT NULL DEFAULT '',
-            created_at DATETIME NOT NULL $now
+            created_at $datetime NOT NULL $now
         )");
     }
 
@@ -64,7 +71,7 @@ final class Db
 
     public function signupsFromIpToday(string $ip): int
     {
-        $col = $this->sqlite ? "date(created_at)" : 'DATE(created_at)';
+        $col = $this->pgsql ? 'created_at::date' : 'DATE(created_at)';
         $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM signups WHERE ip = ? AND $col = ?");
         $stmt->execute([$ip, gmdate('Y-m-d')]);
         return (int) $stmt->fetchColumn();

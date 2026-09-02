@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/src/Response.php';
+require __DIR__ . '/src/Config.php';
 require __DIR__ . '/src/Db.php';
 require __DIR__ . '/src/Groq.php';
 require __DIR__ . '/src/Handlers.php';
@@ -11,11 +12,7 @@ set_exception_handler(static function (Throwable $e): void {
     Response::error('Internal error: ' . $e->getMessage(), 502);
 });
 
-$configPath = __DIR__ . '/config.php';
-if (!is_file($configPath)) {
-    Response::error('Server not configured: copy config.example.php to config.php', 500);
-}
-$config = require $configPath;
+$config = Config::load(__DIR__ . '/config.php');
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($method === 'OPTIONS') {
